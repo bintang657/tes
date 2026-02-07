@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kimjong V20 - Stellar Horizon</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vanilla-tilt@1.8.0/lib/vanilla-tilt.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { 
+                        hud: ['Orbitron', 'sans-serif'],
+                        body: ['Rajdhani', 'sans-serif']
+                    },
+                    colors: {
+                        stellar: {
+                            bg: '#020204',
+                            card: 'rgba(10, 20, 40, 0.6)',
+                            border: 'rgba(0, 240, 255, 0.2)',
+                            primary: '#00f0ff', // Cyan Neon
+                            accent: '#7000ff',  // Deep Purple
+                            gold: '#ffd700',
+                            danger: '#ff003c'
+                        }
+                    },
+                    animation: {
+                        'scan': 'scan 4s linear infinite',
+                        'float': 'float 6s ease-in-out infinite',
+                        'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    },
+                    keyframes: {
+                        scan: {
+                            '0%': { backgroundPosition: '0% 0%' },
+                            '100%': { backgroundPosition: '0% 100%' }
+                        },
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { background-color: #020204; color: #fff; overflow-x: hidden; -webkit-tap-highlight-color: transparent; }
+        
+        /* Starfield Canvas */
+        #starfield {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+        }
+
+        /* HUD Glass */
+        .hud-glass {
+            background: rgba(5, 10, 20, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 240, 255, 0.15);
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.05);
+            position: relative;
+        }
+        
+        /* Tech Corners */
+        .hud-glass::before, .hud-glass::after {
+            content: ''; position: absolute; width: 10px; height: 10px;
+            border: 2px solid transparent; transition: all 0.3s;
+        }
+        .hud-glass::before { top: -1px; left: -1px; border-top-color: #00f0ff; border-left-color: #00f0ff; }
+        .hud-glass::after { bottom: -1px; right: -1px; border-bottom-color: #00f0ff; border-right-color: #00f0ff; }
+
+        /* Neon Text */
+        .neon-text { text-shadow: 0 0 5px #00f0ff; }
+        
+        /* Grid Overlay */
+        .grid-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none;
+            background-image: linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
+        }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="antialiased font-body pb-28">
+
+    <!-- Backgrounds -->
+    <canvas id="starfield"></canvas>
+    <div class="grid-overlay"></div>
+
+    <!-- === AUTH SCREEN (Warp Gate) === -->
+    <div id="authScreen" class="fixed inset-0 z-[100] flex flex-col items-center justify-center p-6 bg-black/90 backdrop-blur-xl">
+        <div class="relative w-32 h-32 mb-8 flex items-center justify-center">
+            <div class="absolute inset-0 border-4 border-stellar-primary/30 rounded-full animate-spin"></div>
+            <div class="absolute inset-2 border-4 border-stellar-accent/50 rounded-full border-t-transparent animate-[spin_3s_linear_infinite_reverse]"></div>
+            <i class="fa-solid fa-shuttle-space text-4xl text-white animate-float"></i>
+        </div>
+        
+        <h1 class="font-hud text-3xl tracking-widest text-white mb-2">STELLAR<span class="text-stellar-primary">.V20</span></h1>
+        <p class="text-stellar-primary text-xs tracking-[0.3em] mb-10 border border-stellar-primary/30 px-3 py-1 rounded">ACCESS REQUIRED</p>
+        
+        <div class="w-full max-w-sm space-y-4 relative">
+            <input type="text" id="loginName" class="w-full bg-stellar-card border border-stellar-primary/30 rounded-none px-6 py-4 text-center text-white focus:border-stellar-primary focus:outline-none transition-all font-hud uppercase tracking-wider clip-path-polygon" placeholder="CALLSIGN / NAME">
+            
+            <button onclick="login()" class="w-full bg-stellar-primary text-black font-bold py-4 hover:bg-white transition-all font-hud tracking-widest shadow-[0_0_20px_rgba(0,240,255,0.4)] clip-path-polygon">
+                INITIATE LAUNCH
+            </button>
+        </div>
+        
+        <!-- Secret Admin Trigger -->
+        <div onclick="triggerAdmin()" class="mt-12 opacity-20 hover:opacity-100 transition-opacity cursor-pointer">
+            <i class="fa-solid fa-fingerprint text-xl text-stellar-primary"></i>
+        </div>
+    </div>
+
+    <!-- === MAIN DASHBOARD === -->
+    <div id="appScreen" class="hidden animate__animated animate__fadeIn">
+        
+        <!-- HEADER HUD -->
+        <header class="fixed top-0 w-full z-50 h-20 bg-gradient-to-b from-black to-transparent px-5 pt-4">
+            <div class="flex justify-between items-start">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 border border-stellar-primary p-0.5 relative">
+                        <img id="navAvatar" src="" class="w-full h-full object-cover">
+                        <div class="absolute -bottom-1 -right-1 w-2 h-2 bg-green-500"></div>
+                    </div>
+                    <div>
+                        <p class="text-[8px] text-stellar-primary font-hud tracking-widest">COMMANDER</p>
+                        <h3 id="navName" class="font-bold text-lg leading-none font-hud uppercase text-white">USER</h3>
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="openMissions()" class="w-10 h-10 border border-stellar-primary/50 bg-stellar-card flex items-center justify-center hover:bg-stellar-primary/20 transition-all relative">
+                        <i class="fa-solid fa-crosshairs text-stellar-primary"></i>
+                        <span id="missionBadge" class="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse hidden"></span>
+                    </button>
+                    <button onclick="openNotif()" class="w-10 h-10 border border-stellar-primary/50 bg-stellar-card flex items-center justify-center hover:bg-stellar-primary/20 transition-all">
+                        <i class="fa-solid fa-bell text-gray-400"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- CONTENT -->
+        <main class="pt-24 px-5 max-w-md mx-auto min-h-screen relative z-10">
+
+            <!-- WALLET HUD (Tilt) -->
+            <div class="hud-glass p-6 mb-8 relative group" data-tilt data-tilt-glare data-tilt-max-glare="0.2">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <p class="text-[9px] text-stellar-primary font-hud tracking-widest mb-1">UNIVERSAL CREDITS</p>
+                        <h1 id="userBalance" class="text-3xl font-bold font-hud tracking-tight text-white neon-text">Rp 0</h1>
+                    </div>
+                    <i class="fa-brands fa-space-awesome text-3xl text-stellar-primary/50"></i>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="deposit()" class="border border-stellar-primary bg-stellar-primary/10 py-2 text-xs font-bold text-stellar-primary hover:bg-stellar-primary hover:text-black transition-all font-hud">
+                        [+] DEPOSIT
+                    </button>
+                    <button onclick="openHistory()" class="border border-gray-600 bg-black/50 py-2 text-xs font-bold text-gray-400 hover:border-white hover:text-white transition-all font-hud">
+                        [#] LOGS
+                    </button>
+                </div>
+            </div>
+
+            <!-- CATEGORY NAV -->
+            <div class="flex gap-2 overflow-x-auto no-scrollbar mb-6 pb-2">
+                <button onclick="filter('all')" class="cat-btn active bg-stellar-primary text-black px-4 py-1.5 text-[10px] font-bold font-hud tracking-wider skew-x-[-10deg]">ALL SYSTEMS</button>
+                <button onclick="filter('Games')" class="cat-btn border border-stellar-primary/30 text-gray-400 px-4 py-1.5 text-[10px] font-bold font-hud tracking-wider skew-x-[-10deg] hover:border-stellar-primary hover:text-white">GAMES</button>
+                <button onclick="filter('Apps')" class="cat-btn border border-stellar-primary/30 text-gray-400 px-4 py-1.5 text-[10px] font-bold font-hud tracking-wider skew-x-[-10deg] hover:border-stellar-primary hover:text-white">APPS</button>
+            </div>
+
+            <!-- PRODUCT GRID -->
+            <div id="productGrid" class="grid grid-cols-2 gap-4 pb-24">
+                <!-- JS Injected -->
+            </div>
+
+        </main>
+
+        <!-- BOTTOM CONTROL -->
+        <div class="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm h-16 bg-stellar-card backdrop-blur-md border border-stellar-primary/30 clip-path-polygon flex justify-around items-center z-40 px-4">
+            <button onclick="window.scrollTo(0,0)" class="text-stellar-primary flex flex-col items-center">
+                <i class="fa-solid fa-rocket text-lg"></i>
+            </button>
+            <button onclick="openHistory()" class="text-gray-500 hover:text-white transition-colors flex flex-col items-center">
+                <i class="fa-solid fa-list-check text-lg"></i>
+            </button>
+            <div class="relative -top-6">
+                <button onclick="deposit()" class="w-14 h-14 bg-black border-2 border-stellar-primary rounded-full flex items-center justify-center text-stellar-primary shadow-[0_0_20px_rgba(0,240,255,0.3)] hover:scale-110 transition-transform">
+                    <i class="fa-solid fa-plus text-xl"></i>
+                </button>
+            </div>
+            <button onclick="openContact()" class="text-gray-500 hover:text-white transition-colors flex flex-col items-center">
+                <i class="fa-brands fa-whatsapp text-lg"></i>
+            </button>
+            <button onclick="logout()" class="text-gray-500 hover:text-red-500 transition-colors flex flex-col items-center">
+                <i class="fa-solid fa-power-off text-lg"></i>
+            </button>
+        </div>
+
+    </div>
+
+    <!-- === MODALS === -->
+
+    <!-- MISSION MODAL (Daily Login) -->
+    <div id="missionModal" class="fixed inset-0 z-[80] hidden flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
+        <div class="w-full max-w-sm bg-stellar-bg border border-stellar-primary p-6 relative">
+            <div class="absolute top-0 left-0 w-full h-1 bg-stellar-primary shadow-[0_0_10px_#00f0ff]"></div>
+            <h3 class="font-hud text-xl text-white mb-6 tracking-wider">DAILY MISSIONS</h3>
+            
+            <div class="space-y-3">
+                <div class="bg-stellar-card border border-white/10 p-3 flex justify-between items-center cursor-pointer hover:border-stellar-primary transition-all" onclick="claimMission(1)">
+                    <div class="flex items-center gap-3">
+                        <i class="fa-solid fa-user-astronaut text-stellar-primary"></i>
+                        <div>
+                            <p class="text-xs font-bold text-white">Login Harian</p>
+                            <p class="text-[10px] text-gray-400">Reward: Rp 1.000</p>
+                        </div>
+                    </div>
+                    <div id="mission1" class="w-6 h-6 border border-gray-600 flex items-center justify-center text-[10px]"></div>
+                </div>
+            </div>
+
+            <button onclick="closeModal('missionModal')" class="mt-6 w-full py-3 border border-gray-600 text-gray-400 text-xs font-bold hover:text-white hover:border-white">CLOSE PANEL</button>
+        </div>
+    </div>
+
+    <!-- ORDER MODAL -->
+    <div id="orderModal" class="fixed inset-0 z-[60] hidden flex items-end sm:items-center justify-center bg-black/90 backdrop-blur-sm">
+        <div class="bg-stellar-bg border-t-2 border-stellar-primary w-full max-w-sm p-6 animate__animated animate__slideInUp relative">
+            
+            <div class="flex gap-4 mb-6">
+                <img id="mImg" class="w-20 h-20 bg-stellar-card p-2 border border-stellar-primary/30 object-contain">
+                <div>
+                    <h3 id="mTitle" class="font-hud font-bold text-lg text-white">MODULE NAME</h3>
+                    <p class="text-xs text-gray-400 mb-1">Status: <span class="text-green-500">Ready</span></p>
+                    <p id="mPrice" class="text-stellar-primary font-bold text-xl font-hud">Rp 0</p>
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="text-[10px] font-bold text-stellar-primary uppercase mb-1 block tracking-widest">TARGET ID</label>
+                    <input type="text" id="targetId" class="w-full bg-stellar-card border border-gray-700 p-3 text-white focus:border-stellar-primary focus:outline-none font-mono" placeholder="ENTER ID">
+                </div>
+                
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="selectPay('saldo')" id="paySaldo" class="border border-stellar-primary bg-stellar-primary/10 p-3 text-left transition-all">
+                        <p class="text-[9px] text-gray-400">BALANCE</p>
+                        <p class="text-xs font-bold text-white">INSTANT</p>
+                    </button>
+                    <button onclick="selectPay('qris')" id="payQris" class="border border-gray-700 bg-transparent p-3 text-left transition-all">
+                        <p class="text-[9px] text-gray-400">QRIS</p>
+                        <p class="text-xs font-bold text-white">E-WALLET</p>
+                    </button>
+                </div>
+
+                <div class="flex gap-3 mt-4">
+                    <button onclick="closeModal('orderModal')" class="flex-1 py-3 border border-gray-600 text-gray-400 font-bold text-xs hover:text-white">ABORT</button>
+                    <button onclick="processOrder()" class="flex-[2] py-3 bg-stellar-primary text-black font-bold text-xs hover:bg-white tracking-widest">EXECUTE</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADMIN MODAL -->
+    <div id="adminModal" class="fixed inset-0 z-[120] hidden bg-black flex flex-col justify-center items-center p-6">
+        <div class="w-full max-w-sm border border-stellar-danger p-6 relative">
+            <div class="absolute inset-0 bg-stellar-danger/5 pointer-events-none"></div>
+            <h2 class="text-xl font-hud font-bold text-stellar-danger mb-4 tracking-widest">GALACTIC COMMAND</h2>
+            <div class="space-y-3">
+                <button onclick="adminAction('saldo')" class="w-full py-3 border border-stellar-danger/50 text-stellar-danger text-xs font-bold hover:bg-stellar-danger hover:text-white transition-all">+ INJECT CREDITS (1M)</button>
+                <button onclick="adminAction('reset')" class="w-full py-3 border border-gray-700 text-gray-400 text-xs font-bold hover:border-white hover:text-white">SYSTEM RESET</button>
+            </div>
+            <button onclick="closeModal('adminModal')" class="mt-6 text-xs text-gray-500 w-full hover:text-white">[ EXIT ]</button>
+        </div>
+    </div>
+
+    <script>
+        // CONFIG
+        const CONFIG = {
+            wa: "6281225980437",
+            qris: "https://files.catbox.moe/2gdzca.jpg"
+        };
+
+        const products = [
+            { id: 1, name: "MLBB 86 Diamonds", price: 20000, img: "https://cdn-icons-png.flaticon.com/512/3408/3408506.png", cat: "Games" },
+            { id: 2, name: "Free Fire 140 DM", price: 19500, img: "https://cdn-icons-png.flaticon.com/512/2696/2696459.png", cat: "Games" },
+            { id: 3, name: "PUBG 60 UC", price: 14500, img: "https://cdn-icons-png.flaticon.com/512/2099/2099238.png", cat: "Games" },
+            { id: 4, name: "Weekly Pass", price: 27500, img: "https://cdn-icons-png.flaticon.com/512/8044/8044321.png", cat: "Games" },
+            { id: 5, name: "Netflix 1 Month", price: 25000, img: "https://cdn-icons-png.flaticon.com/512/2504/2504929.png", cat: "Apps" },
+            { id: 6, name: "Spotify Premium", price: 15000, img: "https://cdn-icons-png.flaticon.com/512/2111/2111624.png", cat: "Apps" },
+        ];
+
+        let user = { name: "Cadet", balance: 0, history: [], lastLogin: null };
+        let selectedProd = null;
+        let payMethod = 'saldo';
+        let adminClicks = 0;
+
+        // INIT
+        window.onload = () => {
+            initStarfield();
+            loadUser();
+            renderProducts('all');
+            
+            // Tilt
+            if(typeof VanillaTilt !== 'undefined') {
+                VanillaTilt.init(document.querySelectorAll(".hud-glass"), { max: 10, speed: 400, glare: true, "max-glare": 0.1 });
+            }
+        };
+
+        // === USER SYSTEM ===
+        function loadUser() {
+            const saved = localStorage.getItem('kj_stellar_user');
+            if(saved) {
+                user = JSON.parse(saved);
+                document.getElementById('authScreen').classList.add('hidden');
+                document.getElementById('appScreen').classList.remove('hidden');
+                checkDaily();
+            }
+            updateUI();
+        }
+
+        function login() {
+            const name = document.getElementById('loginName').value;
+            if(!name) return;
+            user.name = name;
+            saveUser();
+            loadUser();
+            // Warp Effect
+            warpSpeed();
+        }
+
+        function saveUser() {
+            localStorage.setItem('kj_stellar_user', JSON.stringify(user));
+            updateUI();
+        }
+
+        function updateUI() {
+            document.getElementById('navName').innerText = user.name;
+            document.getElementById('navAvatar').src = `https://api.dicebear.com/7.x/identicon/svg?seed=${user.name}`;
+            document.getElementById('userBalance').innerText = `Rp ${user.balance.toLocaleString('id-ID')}`;
+        }
+
+        function logout() {
+            localStorage.removeItem('kj_stellar_user');
+            location.reload();
+        }
+
+        // === MISSION SYSTEM ===
+        function checkDaily() {
+            const today = new Date().toDateString();
+            if (user.lastLogin !== today) {
+                document.getElementById('missionBadge').classList.remove('hidden');
+            } else {
+                document.getElementById('mission1').innerHTML = '<i class="fa-solid fa-check text-green-500"></i>';
+            }
+        }
+
+        function openMissions() {
+            document.getElementById('missionModal').classList.remove('hidden');
+            document.getElementById('missionModal').classList.add('flex');
+        }
+
+        function claimMission(id) {
+            const today = new Date().toDateString();
+            if (user.lastLogin === today) return Swal.fire({toast:true, title:'Already Claimed', background:'#020204', color:'#fff', position:'top', showConfirmButton:false, timer:1500});
+            
+            user.lastLogin = today;
+            user.balance += 1000;
+            saveUser();
+            document.getElementById('mission1').innerHTML = '<i class="fa-solid fa-check text-green-500"></i>';
+            document.getElementById('missionBadge').classList.add('hidden');
+            
+            Swal.fire({icon:'success', title:'+1000 Credits', background:'#020204', color:'#fff'});
+            confetti({particleCount: 100, spread: 70, origin: { y: 0.6 }, colors:['#00f0ff', '#7000ff']});
+        }
+
+        // === PRODUCTS ===
+        function renderProducts(cat) {
+            const grid = document.getElementById('productGrid');
+            const data = cat === 'all' ? products : products.filter(p => p.cat === cat);
+            
+            grid.innerHTML = data.map(p => `
+                <div class="hud-glass p-4 cursor-pointer group hover:border-stellar-primary transition-all relative overflow-hidden" onclick="openOrder(${p.id})">
+                    <div class="absolute inset-0 bg-stellar-primary/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+                    <img src="${p.img}" class="w-12 h-12 mx-auto mb-3 object-contain drop-shadow-[0_0_10px_rgba(255,255,255,0.2)] relative z-10">
+                    <h4 class="font-hud text-[10px] text-center text-gray-300 group-hover:text-white relative z-10">${p.name}</h4>
+                    <p class="text-xs text-stellar-primary text-center font-bold font-mono mt-1 relative z-10">Rp ${p.price.toLocaleString()}</p>
+                </div>
+            `).join('');
+        }
+
+        function filter(cat) {
+            document.querySelectorAll('.cat-btn').forEach(b => {
+                b.className = "cat-btn border border-stellar-primary/30 text-gray-400 px-4 py-1.5 text-[10px] font-bold font-hud tracking-wider skew-x-[-10deg] hover:border-stellar-primary hover:text-white";
+            });
+            event.target.className = "cat-btn active bg-stellar-primary text-black px-4 py-1.5 text-[10px] font-bold font-hud tracking-wider skew-x-[-10deg]";
+            renderProducts(cat);
+        }
+
+        // === ORDER SYSTEM ===
+        function openOrder(id) {
+            selectedProd = products.find(p => p.id === id);
+            document.getElementById('mImg').src = selectedProd.img;
+            document.getElementById('mTitle').innerText = selectedProd.name;
+            document.getElementById('mPrice').innerText = `Rp ${selectedProd.price.toLocaleString()}`;
+            document.getElementById('targetId').value = '';
+            selectPay('saldo');
+            document.getElementById('orderModal').classList.remove('hidden');
+            document.getElementById('orderModal').classList.add('flex');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+            document.getElementById(id).classList.remove('flex');
+        }
+
+        function selectPay(method) {
+            payMethod = method;
+            const btnS = document.getElementById('paySaldo');
+            const btnQ = document.getElementById('payQris');
+            
+            if(method === 'saldo') {
+                btnS.className = "border border-stellar-primary bg-stellar-primary/10 p-3 text-left transition-all";
+                btnQ.className = "border border-gray-700 bg-transparent p-3 text-left transition-all text-gray-500";
+            } else {
+                btnQ.className = "border border-stellar-primary bg-stellar-primary/10 p-3 text-left transition-all";
+                btnS.className = "border border-gray-700 bg-transparent p-3 text-left transition-all text-gray-500";
+            }
+        }
+
+        function processOrder() {
+            const uid = document.getElementById('targetId').value;
+            if(!uid) return Swal.fire({toast:true,position:'top',title:'ID REQUIRED',background:'#020204',color:'#fff',showConfirmButton:false,timer:1500});
+
+            if(payMethod === 'saldo') {
+                if(user.balance < selectedProd.price) {
+                    closeModal('orderModal');
+                    return Swal.fire({title:'INSUFFICIENT FUNDS',text:'Deposit required.',icon:'error',background:'#020204',color:'#fff',confirmButtonText:'DEPOSIT',confirmButtonColor:'#00f0ff',preConfirm:()=>deposit()});
+                }
+                user.balance -= selectedProd.price;
+                user.history.unshift({item: selectedProd.name, price: selectedProd.price, date: new Date().toLocaleString()});
+                saveUser();
+                
+                closeModal('orderModal');
+                Swal.fire({icon:'success', title:'TRANSACTION COMPLETE', background:'#020204', color:'#fff', confirmButtonColor:'#00f0ff'});
+                
+                // WA Notif
+                const msg = `*STELLAR ORDER*%0AItem: ${selectedProd.name}%0AID: ${uid}%0AUser: ${user.name}%0AStatus: PAID (Credits)`;
+                setTimeout(() => window.open(`https://wa.me/${CONFIG.wa}?text=${msg}`, '_blank'), 1000);
+            } else {
+                closeModal('orderModal');
+                Swal.fire({
+                    html: `
+                        <h3 class="font-hud text-lg mb-2">SCAN LINK</h3>
+                        <img src="${CONFIG.qris}" class="w-48 mx-auto border-2 border-stellar-primary rounded mb-4">
+                        <p class="font-mono text-stellar-primary">Rp ${selectedProd.price.toLocaleString()}</p>
+                    `,
+                    background: '#020204', color: '#fff',
+                    confirmButtonText: 'CONFIRM',
+                    confirmButtonColor: '#25D366'
+                }).then(res => {
+                    if(res.isConfirmed) {
+                        const msg = `*STELLAR ORDER*%0AItem: ${selectedProd.name}%0AID: ${uid}%0AUser: ${user.name}%0AStatus: QRIS Pending`;
+                        window.open(`https://wa.me/${CONFIG.wa}?text=${msg}`, '_blank');
+                    }
+                });
+            }
+        }
+
+        // === DEPOSIT ===
+        async function deposit() {
+            const { value: amount } = await Swal.fire({
+                title: 'ADD CREDITS',
+                input: 'number',
+                inputLabel: 'Amount',
+                background: '#020204', color: '#fff',
+                confirmButtonColor: '#00f0ff'
+            });
+
+            if(amount) {
+                const ref = "DEP-"+Date.now().toString().slice(-5);
+                await Swal.fire({
+                    html: `
+                        <img src="${CONFIG.qris}" class="w-48 mx-auto border-2 border-stellar-primary rounded mb-4">
+                        <p class="font-mono text-xl text-stellar-primary font-bold">Rp ${parseInt(amount).toLocaleString()}</p>
+                        <p class="text-xs text-gray-500 font-mono mt-1">REF: ${ref}</p>
+                    `,
+                    background: '#020204', color: '#fff',
+                    confirmButtonText: 'CONFIRM UPLOAD',
+                    confirmButtonColor: '#25D366'
+                }).then((res) => {
+                    if(res.isConfirmed) {
+                        const msg = `*STELLAR DEPOSIT*%0AAmount: Rp ${amount}%0ARef: ${ref}%0AUser: ${user.name}`;
+                        window.open(`https://wa.me/${CONFIG.wa}?text=${msg}`, '_blank');
+                    }
+                });
+            }
+        }
+
+        // === ADMIN & UTILS ===
+        function triggerAdmin() {
+            adminClicks++;
+            if(adminClicks === 5) {
+                Swal.fire({title:'AUTH CODE', input:'password', background:'#020204', color:'#fff'}).then(res => {
+                    if(res.value === '1234') {
+                        document.getElementById('adminModal').classList.remove('hidden');
+                        document.getElementById('adminModal').classList.add('flex');
+                    }
+                });
+                adminClicks = 0;
+            }
+        }
+
+        function adminAction(type) {
+            if(type === 'saldo') {
+                user.balance += 1000000;
+                saveUser();
+                Swal.fire({icon:'success', title:'CREDITS ADDED', background:'#020204', color:'#fff'});
+            } else if(type === 'reset') {
+                logout();
+            }
+            closeModal('adminModal');
+        }
+
+        function openHistory() {
+            const list = user.history.map(h => `${h.item} | Rp ${h.price}`).join('\n') || 'NO DATA';
+            Swal.fire({title:'LOGS', text: list, background:'#020204', color:'#fff', confirmButtonColor:'#00f0ff'});
+        }
+        function openContact() { window.open(`https://wa.me/${CONFIG.wa}`, '_blank'); }
+        function openNotif() { Swal.fire({text:'No new transmissions.', background:'#020204', color:'#fff'}); }
+
+        // === STARFIELD ANIMATION ===
+        let starSpeed = 0.5;
+        function initStarfield() {
+            const canvas = document.getElementById('starfield');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            let stars = [];
+            for(let i=0; i<200; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    z: Math.random() * canvas.width
+                });
+            }
+
+            function moveStars() {
+                ctx.fillStyle = "black";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                stars.forEach(star => {
+                    star.z -= starSpeed;
+                    if(star.z <= 0) {
+                        star.x = Math.random() * canvas.width;
+                        star.y = Math.random() * canvas.height;
+                        star.z = canvas.width;
+                    }
+                    
+                    const x = (star.x - canvas.width/2) * (canvas.width/star.z) + canvas.width/2;
+                    const y = (star.y - canvas.height/2) * (canvas.width/star.z) + canvas.height/2;
+                    const size = (1 - star.z/canvas.width) * 3;
+                    
+                    ctx.beginPath();
+                    ctx.fillStyle = "white";
+                    ctx.arc(x, y, size, 0, Math.PI*2);
+                    ctx.fill();
+                });
+                requestAnimationFrame(moveStars);
+            }
+            moveStars();
+        }
+
+        function warpSpeed() {
+            starSpeed = 20;
+            setTimeout(() => { starSpeed = 0.5; }, 1000);
+        }
+    </script>
+</body>
+</html>
+
+
